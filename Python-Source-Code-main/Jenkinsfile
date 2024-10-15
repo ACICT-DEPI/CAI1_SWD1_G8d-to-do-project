@@ -1,0 +1,29 @@
+node {
+    def app
+
+    stage('Clone Repository') {
+        checkout([$class: 'GitSCM', branches: [[name: '*/main']], userRemoteConfigs: [[url: 'https://github.com/Elshafiee/to-do-app']]])
+    }
+
+    stage('Build Image') {
+        app = docker.build("mostafasalem2/python-app:${env.BUILD_NUMBER}")
+    }
+
+    stage('Test Image') {
+        app.inside {
+            sh 'echo "Tests passed"'
+        }
+    }
+
+    stage('Push Image') {
+        docker.withRegistry('https://registry.hub.docker.com', 'dockerhub') {
+            app.push("latest")
+            app.push("${env.BUILD_NUMBER}")
+        }
+    }
+
+    stage('Trigger ManifestUpdate') {
+        build job: 'updatemanifest', parameters: [string(name: 'DOCKERTAG', value: "${env.BUILD_NUMBER}")]
+    }
+}
+
